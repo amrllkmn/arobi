@@ -1,15 +1,16 @@
 use std::collections::{BTreeMap, HashMap, VecDeque};
 
-enum Side {
+#[derive(Debug, Clone, Copy)]
+pub enum Side {
     Bid,
     Ask,
 }
-struct Order {
-    id: u64,
-    side: Side,
-    price: u64,
-    quantity: u64,
-    timestamp: u64,
+pub struct Order {
+    pub id: u64,
+    pub side: Side,
+    pub price: u64,
+    pub quantity: u64,
+    pub timestamp: u64,
 }
 
 struct PriceLevel {
@@ -17,7 +18,14 @@ struct PriceLevel {
     orders: VecDeque<Order>,
 }
 
-struct OrderBook {
+pub struct Fill {
+    pub price: u64,
+    pub quantity: u64,
+    pub maker_order_id: u64,
+    pub taker_order_id: u64,
+}
+
+pub struct OrderBook {
     bids: BTreeMap<u64, PriceLevel>,      // highest price is best
     asks: BTreeMap<u64, PriceLevel>,      // lowest price is best
     order_map: HashMap<u64, (Side, u64)>, // key: order_id, value: (side, price)
