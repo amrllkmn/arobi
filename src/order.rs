@@ -231,9 +231,9 @@ mod tests {
             timestamp: 0,
         };
 
-        price_level_bids.orders.push_front(bid);
-        second_bid_price_level.orders.push_front(another_bid);
-        price_level_asks.orders.push_front(ask);
+        price_level_bids.orders.push_back(bid);
+        second_bid_price_level.orders.push_back(another_bid);
+        price_level_asks.orders.push_back(ask);
 
         bids.insert(100, price_level_bids);
         bids.insert(95, second_bid_price_level);
@@ -249,7 +249,77 @@ mod tests {
         assert_eq!(fills.len(), 2);
         assert_eq!(fills[0].price, 100);
         assert_eq!(fills[0].quantity, 10);
+        assert_eq!(fills[0].maker_order_id, 1);
         assert_eq!(fills[1].price, 95);
         assert_eq!(fills[1].quantity, 20);
+        assert_eq!(fills[1].maker_order_id, 2);
+    }
+
+    #[test]
+    fn test_add_limit_order_bid_create_fills() {
+        let mut bids: BTreeMap<u64, PriceLevel> = BTreeMap::new();
+        let mut asks: BTreeMap<u64, PriceLevel> = BTreeMap::new();
+        let order_map: HashMap<u64, (Side, u64)> = HashMap::new();
+
+        let incoming_bid = Order {
+            id: 3,
+            side: Side::Bid,
+            price: 100,
+            quantity: 20,
+            timestamp: 0,
+        };
+
+        let price_level_bids = PriceLevel {
+            price: 100,
+            orders: VecDeque::new(),
+        };
+
+        let mut price_level_asks = PriceLevel {
+            price: 90,
+            orders: VecDeque::new(),
+        };
+
+        let mut second_price_level_asks = PriceLevel {
+            price: 85,
+            orders: VecDeque::new(),
+        };
+
+        let ask = Order {
+            id: 1,
+            side: Side::Ask,
+            price: 90,
+            quantity: 10,
+            timestamp: 0,
+        };
+
+        let second_ask = Order {
+            id: 2,
+            side: Side::Ask,
+            price: 85,
+            quantity: 10,
+            timestamp: 0,
+        };
+
+        price_level_asks.orders.push_back(ask);
+        second_price_level_asks.orders.push_back(second_ask);
+
+        bids.insert(100, price_level_bids);
+        asks.insert(90, price_level_asks);
+        asks.insert(85, second_price_level_asks);
+
+        let mut order_book = OrderBook {
+            bids,
+            asks,
+            order_map,
+        };
+
+        let fills = order_book.add_limit_order(incoming_bid);
+        assert_eq!(fills.len(), 2);
+        assert_eq!(fills[0].price, 85);
+        assert_eq!(fills[0].quantity, 10);
+        assert_eq!(fills[0].maker_order_id, 2);
+        assert_eq!(fills[1].price, 90);
+        assert_eq!(fills[1].quantity, 10);
+        assert_eq!(fills[1].maker_order_id, 1);
     }
 }
