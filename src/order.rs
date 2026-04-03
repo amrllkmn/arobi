@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use std::collections::{BTreeMap, HashMap, VecDeque};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
