@@ -323,4 +323,119 @@ mod tests {
         assert_eq!(fills[1].quantity, 10);
         assert_eq!(fills[1].maker_order_id, 1);
     }
+
+    #[test]
+    fn test_add_limit_order_unfilled_added_to_book() {
+        let mut bids: BTreeMap<u64, PriceLevel> = BTreeMap::new();
+        let mut asks: BTreeMap<u64, PriceLevel> = BTreeMap::new();
+        let order_map: HashMap<u64, (Side, u64)> = HashMap::new();
+
+        let incoming_bid = Order {
+            id: 3,
+            side: Side::Bid,
+            price: 100,
+            quantity: 20,
+            timestamp: 0,
+        };
+
+        let price_level_bids = PriceLevel {
+            price: 100,
+            orders: VecDeque::new(),
+        };
+
+        let price_level_asks = PriceLevel {
+            price: 90,
+            orders: VecDeque::new(),
+        };
+
+        let mut second_price_level_asks = PriceLevel {
+            price: 85,
+            orders: VecDeque::new(),
+        };
+
+        let second_ask = Order {
+            id: 2,
+            side: Side::Ask,
+            price: 85,
+            quantity: 10,
+            timestamp: 0,
+        };
+
+        second_price_level_asks.orders.push_back(second_ask);
+
+        bids.insert(100, price_level_bids);
+        asks.insert(90, price_level_asks);
+        asks.insert(85, second_price_level_asks);
+
+        let mut order_book = OrderBook {
+            bids,
+            asks,
+            order_map,
+        };
+
+        let fills = order_book.add_limit_order(incoming_bid);
+
+        // remainder bid should be resting bid now
+        let remainder = order_book.bids.get(&100);
+
+        // remainder is in order map as well
+        let bid_in_order_map = order_book.order_map.get(&3);
+        assert!(bid_in_order_map.is_some());
+        assert_eq!(bid_in_order_map.unwrap(), &(Side::Bid, 100));
+
+        assert_eq!(fills.len(), 1);
+        assert!(remainder.is_some());
+        assert_eq!(remainder.unwrap().orders.len(), 1);
+        assert_eq!(remainder.unwrap().orders[0].id, 3);
+    }
+
+    #[test]
+    fn test_add_limit_order_clears_from_order_map() {
+        let mut bids: BTreeMap<u64, PriceLevel> = BTreeMap::new();
+        let mut asks: BTreeMap<u64, PriceLevel> = BTreeMap::new();
+        let mut order_map: HashMap<u64, (Side, u64)> = HashMap::new();
+
+        let incoming_bid = Order {
+            id: 3,
+            side: Side::Bid,
+            price: 100,
+            quantity: 10,
+            timestamp: 0,
+        };
+
+        let price_level_bids = PriceLevel {
+            price: 100,
+            orders: VecDeque::new(),
+        };
+
+        let mut second_price_level_asks = PriceLevel {
+            price: 85,
+            orders: VecDeque::new(),
+        };
+
+        let second_ask = Order {
+            id: 2,
+            side: Side::Ask,
+            price: 85,
+            quantity: 10,
+            timestamp: 0,
+        };
+
+        second_price_level_asks.orders.push_back(second_ask);
+        order_map.insert(2, (Side::Ask, 85));
+
+        bids.insert(100, price_level_bids);
+        asks.insert(85, second_price_level_asks);
+
+        let mut order_book = OrderBook {
+            bids,
+            asks,
+            order_map,
+        };
+
+        let fills = order_book.add_limit_order(incoming_bid);
+
+        assert_eq!(fills.len(), 1);
+        assert!(order_book.order_map.get(&2).is_none());
+    }
 }
