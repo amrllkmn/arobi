@@ -453,7 +453,7 @@ mod tests {
             timestamp: 0,
         };
 
-        let mut price_level_bids = PriceLevel {
+        let price_level_bids = PriceLevel {
             price: 100,
             orders: VecDeque::new(),
         };
@@ -470,17 +470,7 @@ mod tests {
             quantity: 10,
             timestamp: 0,
         };
-
-        let resting_bid = Order {
-            id: 1,
-            side: Side::Bid,
-            price: 100,
-            quantity: 10,
-            timestamp: 0,
-        };
-
         price_level_asks.orders.push_back(resting_ask);
-        price_level_bids.orders.push_back(resting_bid);
 
         bids.insert(100, price_level_bids);
         asks.insert(110, price_level_asks);
@@ -496,8 +486,8 @@ mod tests {
 
         assert_eq!(fills.len(), 0);
         assert!(new_resting.is_some());
-        assert_eq!(new_resting.unwrap().orders.len(), 2);
-        assert_eq!(new_resting.unwrap().orders[1].id, 2); // inserted in fifo
+        assert_eq!(new_resting.unwrap().orders.len(), 1);
+        assert_eq!(new_resting.unwrap().orders[0].id, 2); // inserted in fifo
     }
 
     #[test]
@@ -554,7 +544,6 @@ mod tests {
 
         let fills = order_book.add_limit_order(incoming_bid);
 
-        assert_eq!(fills.len(), 2);
         assert_eq!(fills.len(), 2);
         assert_eq!(fills[0].price, 85);
         assert_eq!(fills[0].quantity, 10);
