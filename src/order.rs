@@ -11,8 +11,8 @@ pub enum Side {
 pub enum OrderType {
     Limit,
     Market,
-    IOC,
-    FOK,
+    ImmediateOrCancel,
+    FillOrKill,
     Cancel,
 }
 
