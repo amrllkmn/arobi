@@ -33,6 +33,14 @@ pub struct OrderBook {
 }
 
 impl OrderBook {
+    pub fn new() -> Self {
+        Self {
+            bids: BTreeMap::new(),
+            asks: BTreeMap::new(),
+            order_map: HashMap::new(),
+        }
+    }
+
     fn add_bid_order(&mut self, mut order: Order) -> Vec<Fill> {
         let mut fills: Vec<Fill> = Vec::new();
         let mut to_be_deleted: Vec<u64> = Vec::new();
@@ -181,9 +189,7 @@ mod tests {
 
     #[test]
     fn add_limit_order_ask_create_fills() {
-        let mut bids: BTreeMap<u64, PriceLevel> = BTreeMap::new();
-        let mut asks: BTreeMap<u64, PriceLevel> = BTreeMap::new();
-        let order_map: HashMap<u64, (Side, u64)> = HashMap::new();
+        let mut order_book = OrderBook::new();
 
         let bid = Order {
             id: 1,
@@ -201,28 +207,8 @@ mod tests {
             timestamp: 0,
         };
 
-        let ask = Order {
-            id: 3,
-            side: Side::Ask,
-            price: 90,
-            quantity: 10,
-            timestamp: 0,
-        };
-
-        let mut price_level_bids = PriceLevel {
-            price: 100,
-            orders: VecDeque::new(),
-        };
-
-        let mut second_bid_price_level = PriceLevel {
-            price: 95,
-            orders: VecDeque::new(),
-        };
-
-        let mut price_level_asks = PriceLevel {
-            price: 90,
-            orders: VecDeque::new(),
-        };
+        order_book.add_bid_order(bid);
+        order_book.add_bid_order(another_bid);
 
         let incoming_ask = Order {
             id: 4,
@@ -230,20 +216,6 @@ mod tests {
             price: 80,
             quantity: 30,
             timestamp: 0,
-        };
-
-        price_level_bids.orders.push_back(bid);
-        second_bid_price_level.orders.push_back(another_bid);
-        price_level_asks.orders.push_back(ask);
-
-        bids.insert(100, price_level_bids);
-        bids.insert(95, second_bid_price_level);
-        asks.insert(90, price_level_asks);
-
-        let mut order_book = OrderBook {
-            bids,
-            asks,
-            order_map,
         };
 
         let fills = order_book.add_limit_order(incoming_ask);
@@ -258,31 +230,12 @@ mod tests {
 
     #[test]
     fn test_add_limit_order_bid_create_fills() {
-        let mut bids: BTreeMap<u64, PriceLevel> = BTreeMap::new();
-        let mut asks: BTreeMap<u64, PriceLevel> = BTreeMap::new();
-        let order_map: HashMap<u64, (Side, u64)> = HashMap::new();
-
         let incoming_bid = Order {
             id: 3,
             side: Side::Bid,
             price: 100,
             quantity: 20,
             timestamp: 0,
-        };
-
-        let price_level_bids = PriceLevel {
-            price: 100,
-            orders: VecDeque::new(),
-        };
-
-        let mut price_level_asks = PriceLevel {
-            price: 90,
-            orders: VecDeque::new(),
-        };
-
-        let mut second_price_level_asks = PriceLevel {
-            price: 85,
-            orders: VecDeque::new(),
         };
 
         let ask = Order {
@@ -301,18 +254,9 @@ mod tests {
             timestamp: 0,
         };
 
-        price_level_asks.orders.push_back(ask);
-        second_price_level_asks.orders.push_back(second_ask);
-
-        bids.insert(100, price_level_bids);
-        asks.insert(90, price_level_asks);
-        asks.insert(85, second_price_level_asks);
-
-        let mut order_book = OrderBook {
-            bids,
-            asks,
-            order_map,
-        };
+        let mut order_book = OrderBook::new();
+        order_book.add_ask_order(ask);
+        order_book.add_ask_order(second_ask);
 
         let fills = order_book.add_limit_order(incoming_bid);
         assert_eq!(fills.len(), 2);
@@ -326,10 +270,6 @@ mod tests {
 
     #[test]
     fn test_add_limit_order_remainder_added_to_book() {
-        let mut bids: BTreeMap<u64, PriceLevel> = BTreeMap::new();
-        let mut asks: BTreeMap<u64, PriceLevel> = BTreeMap::new();
-        let order_map: HashMap<u64, (Side, u64)> = HashMap::new();
-
         let incoming_bid = Order {
             id: 3,
             side: Side::Bid,
@@ -338,22 +278,7 @@ mod tests {
             timestamp: 0,
         };
 
-        let price_level_bids = PriceLevel {
-            price: 100,
-            orders: VecDeque::new(),
-        };
-
-        let price_level_asks = PriceLevel {
-            price: 90,
-            orders: VecDeque::new(),
-        };
-
-        let mut second_price_level_asks = PriceLevel {
-            price: 85,
-            orders: VecDeque::new(),
-        };
-
-        let second_ask = Order {
+        let resting_ask = Order {
             id: 2,
             side: Side::Ask,
             price: 85,
@@ -361,17 +286,8 @@ mod tests {
             timestamp: 0,
         };
 
-        second_price_level_asks.orders.push_back(second_ask);
-
-        bids.insert(100, price_level_bids);
-        asks.insert(90, price_level_asks);
-        asks.insert(85, second_price_level_asks);
-
-        let mut order_book = OrderBook {
-            bids,
-            asks,
-            order_map,
-        };
+        let mut order_book = OrderBook::new();
+        order_book.add_ask_order(resting_ask);
 
         let fills = order_book.add_limit_order(incoming_bid);
 
@@ -391,10 +307,6 @@ mod tests {
 
     #[test]
     fn test_add_limit_order_clears_from_order_map() {
-        let mut bids: BTreeMap<u64, PriceLevel> = BTreeMap::new();
-        let mut asks: BTreeMap<u64, PriceLevel> = BTreeMap::new();
-        let mut order_map: HashMap<u64, (Side, u64)> = HashMap::new();
-
         let incoming_bid = Order {
             id: 3,
             side: Side::Bid,
@@ -403,17 +315,7 @@ mod tests {
             timestamp: 0,
         };
 
-        let price_level_bids = PriceLevel {
-            price: 100,
-            orders: VecDeque::new(),
-        };
-
-        let mut second_price_level_asks = PriceLevel {
-            price: 85,
-            orders: VecDeque::new(),
-        };
-
-        let second_ask = Order {
+        let resting_ask = Order {
             id: 2,
             side: Side::Ask,
             price: 85,
@@ -421,17 +323,9 @@ mod tests {
             timestamp: 0,
         };
 
-        second_price_level_asks.orders.push_back(second_ask);
-        order_map.insert(2, (Side::Ask, 85));
+        let mut order_book = OrderBook::new();
 
-        bids.insert(100, price_level_bids);
-        asks.insert(85, second_price_level_asks);
-
-        let mut order_book = OrderBook {
-            bids,
-            asks,
-            order_map,
-        };
+        order_book.add_ask_order(resting_ask);
 
         let fills = order_book.add_limit_order(incoming_bid);
 
@@ -441,26 +335,12 @@ mod tests {
 
     #[test]
     fn test_add_limit_order_unfilled_added_to_book() {
-        let mut bids: BTreeMap<u64, PriceLevel> = BTreeMap::new();
-        let mut asks: BTreeMap<u64, PriceLevel> = BTreeMap::new();
-        let order_map: HashMap<u64, (Side, u64)> = HashMap::new();
-
         let incoming_bid = Order {
             id: 2,
             side: Side::Bid,
             price: 100,
             quantity: 20,
             timestamp: 0,
-        };
-
-        let price_level_bids = PriceLevel {
-            price: 100,
-            orders: VecDeque::new(),
-        };
-
-        let mut price_level_asks = PriceLevel {
-            price: 110,
-            orders: VecDeque::new(),
         };
 
         let resting_ask = Order {
@@ -470,16 +350,9 @@ mod tests {
             quantity: 10,
             timestamp: 0,
         };
-        price_level_asks.orders.push_back(resting_ask);
 
-        bids.insert(100, price_level_bids);
-        asks.insert(110, price_level_asks);
-
-        let mut order_book = OrderBook {
-            bids,
-            asks,
-            order_map,
-        };
+        let mut order_book = OrderBook::new();
+        order_book.add_ask_order(resting_ask);
 
         let fills = order_book.add_limit_order(incoming_bid);
         let new_resting = order_book.bids.get(&100);
@@ -492,26 +365,12 @@ mod tests {
 
     #[test]
     fn test_add_limit_order_fills_in_fifo() {
-        let mut bids: BTreeMap<u64, PriceLevel> = BTreeMap::new();
-        let mut asks: BTreeMap<u64, PriceLevel> = BTreeMap::new();
-        let order_map: HashMap<u64, (Side, u64)> = HashMap::new();
-
         let incoming_bid = Order {
             id: 2,
             side: Side::Bid,
             price: 100,
             quantity: 20,
             timestamp: 0,
-        };
-
-        let price_level_bids = PriceLevel {
-            price: 100,
-            orders: VecDeque::new(),
-        };
-
-        let mut price_level_asks = PriceLevel {
-            price: 85,
-            orders: VecDeque::new(),
         };
 
         let first_resting_ask = Order {
@@ -530,17 +389,9 @@ mod tests {
             timestamp: 0,
         };
 
-        price_level_asks.orders.push_back(first_resting_ask);
-        price_level_asks.orders.push_back(second_resting_ask);
-
-        bids.insert(100, price_level_bids);
-        asks.insert(85, price_level_asks);
-
-        let mut order_book = OrderBook {
-            bids,
-            asks,
-            order_map,
-        };
+        let mut order_book = OrderBook::new();
+        order_book.add_ask_order(first_resting_ask);
+        order_book.add_ask_order(second_resting_ask);
 
         let fills = order_book.add_limit_order(incoming_bid);
 
