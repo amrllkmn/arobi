@@ -6,12 +6,23 @@ pub enum Side {
     Bid,
     Ask,
 }
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum OrderType {
+    Limit,
+    Market,
+    ImmediateOrCancel,
+    FillOrKill,
+    Cancel,
+}
+
 pub struct Order {
     pub id: u64,
     pub side: Side,
     pub price: u64,
     pub quantity: u64,
     pub timestamp: u64,
+    pub order_type: OrderType,
 }
 
 struct PriceLevel {
@@ -30,6 +41,19 @@ pub struct OrderBook {
     bids: BTreeMap<u64, PriceLevel>,      // highest price is best
     asks: BTreeMap<u64, PriceLevel>,      // lowest price is best
     order_map: HashMap<u64, (Side, u64)>, // key: order_id, value: (side, price)
+}
+
+impl Order {
+    pub fn new_limit(id: u64, side: Side, price: u64, quantity: u64, timestamp: u64) -> Self {
+        Self {
+            id,
+            side,
+            order_type: OrderType::Limit,
+            price,
+            quantity,
+            timestamp,
+        }
+    }
 }
 
 impl OrderBook {
@@ -191,32 +215,14 @@ mod tests {
     fn add_limit_order_ask_create_fills() {
         let mut order_book = OrderBook::new();
 
-        let bid = Order {
-            id: 1,
-            side: Side::Bid,
-            price: 100,
-            quantity: 10,
-            timestamp: 0,
-        };
+        let bid = Order::new_limit(1, Side::Bid, 100, 10, 0);
 
-        let another_bid = Order {
-            id: 2,
-            side: Side::Bid,
-            price: 95,
-            quantity: 20,
-            timestamp: 0,
-        };
+        let another_bid = Order::new_limit(2, Side::Bid, 95, 20, 0);
 
         order_book.add_bid_order(bid);
         order_book.add_bid_order(another_bid);
 
-        let incoming_ask = Order {
-            id: 4,
-            side: Side::Ask,
-            price: 80,
-            quantity: 30,
-            timestamp: 0,
-        };
+        let incoming_ask = Order::new_limit(4, Side::Ask, 80, 30, 0);
 
         let fills = order_book.add_limit_order(incoming_ask);
         assert_eq!(fills.len(), 2);
@@ -230,29 +236,11 @@ mod tests {
 
     #[test]
     fn test_add_limit_order_bid_create_fills() {
-        let incoming_bid = Order {
-            id: 3,
-            side: Side::Bid,
-            price: 100,
-            quantity: 20,
-            timestamp: 0,
-        };
+        let incoming_bid = Order::new_limit(3, Side::Bid, 100, 20, 0);
 
-        let ask = Order {
-            id: 1,
-            side: Side::Ask,
-            price: 90,
-            quantity: 10,
-            timestamp: 0,
-        };
+        let ask = Order::new_limit(1, Side::Ask, 90, 10, 0);
 
-        let second_ask = Order {
-            id: 2,
-            side: Side::Ask,
-            price: 85,
-            quantity: 10,
-            timestamp: 0,
-        };
+        let second_ask = Order::new_limit(2, Side::Ask, 85, 10, 0);
 
         let mut order_book = OrderBook::new();
         order_book.add_ask_order(ask);
@@ -270,21 +258,9 @@ mod tests {
 
     #[test]
     fn test_add_limit_order_remainder_added_to_book() {
-        let incoming_bid = Order {
-            id: 3,
-            side: Side::Bid,
-            price: 100,
-            quantity: 20,
-            timestamp: 0,
-        };
+        let incoming_bid = Order::new_limit(3, Side::Bid, 100, 20, 0);
 
-        let resting_ask = Order {
-            id: 2,
-            side: Side::Ask,
-            price: 85,
-            quantity: 10,
-            timestamp: 0,
-        };
+        let resting_ask = Order::new_limit(2, Side::Ask, 85, 10, 0);
 
         let mut order_book = OrderBook::new();
         order_book.add_ask_order(resting_ask);
@@ -307,21 +283,9 @@ mod tests {
 
     #[test]
     fn test_add_limit_order_clears_from_order_map() {
-        let incoming_bid = Order {
-            id: 3,
-            side: Side::Bid,
-            price: 100,
-            quantity: 10,
-            timestamp: 0,
-        };
+        let incoming_bid = Order::new_limit(3, Side::Bid, 100, 10, 0);
 
-        let resting_ask = Order {
-            id: 2,
-            side: Side::Ask,
-            price: 85,
-            quantity: 10,
-            timestamp: 0,
-        };
+        let resting_ask = Order::new_limit(2, Side::Ask, 85, 10, 0);
 
         let mut order_book = OrderBook::new();
 
@@ -335,21 +299,9 @@ mod tests {
 
     #[test]
     fn test_add_limit_order_unfilled_added_to_book() {
-        let incoming_bid = Order {
-            id: 2,
-            side: Side::Bid,
-            price: 100,
-            quantity: 20,
-            timestamp: 0,
-        };
+        let incoming_bid = Order::new_limit(2, Side::Bid, 100, 20, 0);
 
-        let resting_ask = Order {
-            id: 3,
-            side: Side::Ask,
-            price: 110,
-            quantity: 10,
-            timestamp: 0,
-        };
+        let resting_ask = Order::new_limit(3, Side::Ask, 110, 10, 0);
 
         let mut order_book = OrderBook::new();
         order_book.add_ask_order(resting_ask);
@@ -365,29 +317,11 @@ mod tests {
 
     #[test]
     fn test_add_limit_order_fills_in_fifo() {
-        let incoming_bid = Order {
-            id: 2,
-            side: Side::Bid,
-            price: 100,
-            quantity: 20,
-            timestamp: 0,
-        };
+        let incoming_bid = Order::new_limit(2, Side::Bid, 100, 20, 0);
 
-        let first_resting_ask = Order {
-            id: 1,
-            side: Side::Ask,
-            price: 85,
-            quantity: 10,
-            timestamp: 0,
-        };
+        let first_resting_ask = Order::new_limit(1, Side::Ask, 85, 10, 0);
 
-        let second_resting_ask = Order {
-            id: 3,
-            side: Side::Ask,
-            price: 85,
-            quantity: 10,
-            timestamp: 0,
-        };
+        let second_resting_ask = Order::new_limit(3, Side::Ask, 85, 10, 1);
 
         let mut order_book = OrderBook::new();
         order_book.add_ask_order(first_resting_ask);
