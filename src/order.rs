@@ -76,6 +76,9 @@ impl OrderBook {
         }
     }
 
+    // TODO: CREATE A RESTING ORDER FUNCTIONS
+    // TODO: RENAME EXISTING FUNCTIONS
+
     fn add_bid_order(&mut self, mut order: Order) -> Vec<Fill> {
         let mut fills: Vec<Fill> = Vec::new();
         let mut to_be_deleted: Vec<u64> = Vec::new();
