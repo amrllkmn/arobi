@@ -442,4 +442,14 @@ mod tests {
         assert_eq!(fills[1].quantity, 10);
         assert_eq!(fills[1].maker_order_id, 3);
     }
+
+    #[test]
+    fn test_add_market_order_consumes_different_price_levels() {
+        todo!()
+    }
+
+    #[test]
+    fn test_add_market_order_no_remainder_in_book() {
+        todo!()
+    }
 }
