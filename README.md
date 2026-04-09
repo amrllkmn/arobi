@@ -15,3 +15,6 @@ The book also maintains a `HashMap` of key `order_id` and value `(side, price)`.
 
 ### Add Limit Order
 This uses price-time priority matching, where an incoming order arrives, it matches against best price (bids match against lowest asking price; asks match against highest bid price). Within each price level, the order is filled in FIFO order.
+
+### Add Market Order
+This consumes the available liquidity in the market until the order is filled. If there is remaining quantity, it is silently discarded. Market orders never rest in the book.
