@@ -448,11 +448,50 @@ mod tests {
 
     #[test]
     fn test_add_market_order_consumes_different_price_levels() {
-        todo!()
+        let incoming_order = Order::new_market(1, Side::Bid, 30, 0);
+
+        let first_resting_ask = Order::new_limit(2, Side::Ask, 85, 10, 0);
+        let second_resting_ask = Order::new_limit(3, Side::Ask, 85, 10, 1);
+        let third_resting_ask = Order::new_limit(4, Side::Ask, 100, 10, 2);
+
+        let mut order_book = OrderBook::new();
+        order_book.add_ask_order(first_resting_ask);
+        order_book.add_ask_order(second_resting_ask);
+        order_book.add_ask_order(third_resting_ask);
+
+        let fills = order_book.add_market_order(incoming_order);
+
+        assert_eq!(fills.len(), 3);
+        assert_eq!(fills[0].price, 85);
+        assert_eq!(fills[0].quantity, 10);
+        assert_eq!(fills[0].maker_order_id, 2);
+        assert_eq!(fills[1].price, 85);
+        assert_eq!(fills[1].quantity, 10);
+        assert_eq!(fills[1].maker_order_id, 3);
+        assert_eq!(fills[2].price, 100);
+        assert_eq!(fills[2].quantity, 10);
+        assert_eq!(fills[2].maker_order_id, 4);
+        assert!(order_book.asks.is_empty());
+        assert!(order_book.order_map.is_empty());
     }
 
     #[test]
-    fn test_add_market_order_no_remainder_in_book() {
-        todo!()
+    fn test_add_market_order_larger_than_liquidity_fills_what_it_can() {
+        let incoming_order = Order::new_market(1, Side::Bid, 20, 0);
+
+        let first_resting_ask = Order::new_limit(2, Side::Ask, 85, 10, 0);
+
+        let mut order_book = OrderBook::new();
+        order_book.add_ask_order(first_resting_ask);
+
+        let fills = order_book.add_market_order(incoming_order);
+
+        assert_eq!(fills.len(), 1);
+        assert_eq!(fills[0].price, 85);
+        assert_eq!(fills[0].quantity, 10);
+        assert_eq!(fills[0].maker_order_id, 2);
+        assert!(order_book.order_map.get(&fills[0].taker_order_id).is_none()); // taker order (incoming order) should not be in order_map even if larger than available liquidity
+        assert!(order_book.asks.is_empty()); // price level removed when exhausted
+        assert!(order_book.order_map.is_empty()); // maker removed from order_map
     }
 }
