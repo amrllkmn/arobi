@@ -76,7 +76,6 @@ impl OrderBook {
         }
     }
 
-    // TODO: CREATE A RESTING ORDER FUNCTIONS
     fn add_resting_order(&mut self, order: Order) {
         let order_id = order.id;
         let order_price = order.price;
@@ -94,7 +93,6 @@ impl OrderBook {
             .push_back(order);
         self.order_map.insert(order_id, (order_side, order_price));
     }
-    // TODO: RENAME EXISTING FUNCTIONS
 
     fn execute_limit_bid_order(&mut self, mut order: Order) -> Vec<Fill> {
         let mut fills: Vec<Fill> = Vec::new();
@@ -142,15 +140,7 @@ impl OrderBook {
         }
 
         if order.quantity > 0 {
-            self.order_map.insert(order.id, (order.side, order.price));
-            self.bids
-                .entry(order.price)
-                .or_insert_with(|| PriceLevel {
-                    price: order.price,
-                    orders: VecDeque::new(),
-                })
-                .orders
-                .push_back(order);
+            self.add_resting_order(order);
         }
 
         fills
@@ -201,15 +191,7 @@ impl OrderBook {
         }
 
         if order.quantity > 0 {
-            self.order_map.insert(order.id, (order.side, order.price));
-            self.asks
-                .entry(order.price)
-                .or_insert_with(|| PriceLevel {
-                    price: order.price,
-                    orders: VecDeque::new(),
-                })
-                .orders
-                .push_back(order);
+            self.add_resting_order(order);
         }
 
         fills
