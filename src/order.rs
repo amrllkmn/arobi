@@ -76,10 +76,25 @@ impl OrderBook {
         }
     }
 
-    // TODO: CREATE A RESTING ORDER FUNCTIONS
-    // TODO: RENAME EXISTING FUNCTIONS
+    fn add_resting_order(&mut self, order: Order) {
+        let order_id = order.id;
+        let order_price = order.price;
+        let order_side = order.side;
+        let book: &mut BTreeMap<u64, PriceLevel> = match order.side {
+            Side::Bid => &mut self.bids,
+            Side::Ask => &mut self.asks,
+        };
+        book.entry(order.price)
+            .or_insert_with(|| PriceLevel {
+                price: order.price,
+                orders: VecDeque::new(),
+            })
+            .orders
+            .push_back(order);
+        self.order_map.insert(order_id, (order_side, order_price));
+    }
 
-    fn add_bid_order(&mut self, mut order: Order) -> Vec<Fill> {
+    fn execute_limit_bid_order(&mut self, mut order: Order) -> Vec<Fill> {
         let mut fills: Vec<Fill> = Vec::new();
         let mut to_be_deleted: Vec<u64> = Vec::new();
         for (price, price_level) in self.asks.iter_mut() {
@@ -125,20 +140,12 @@ impl OrderBook {
         }
 
         if order.quantity > 0 {
-            self.order_map.insert(order.id, (order.side, order.price));
-            self.bids
-                .entry(order.price)
-                .or_insert_with(|| PriceLevel {
-                    price: order.price,
-                    orders: VecDeque::new(),
-                })
-                .orders
-                .push_back(order);
+            self.add_resting_order(order);
         }
 
         fills
     }
-    fn add_ask_order(&mut self, mut order: Order) -> Vec<Fill> {
+    fn execute_limit_ask_order(&mut self, mut order: Order) -> Vec<Fill> {
         let mut fills: Vec<Fill> = Vec::new();
 
         let mut to_be_deleted: Vec<u64> = Vec::new();
@@ -184,21 +191,13 @@ impl OrderBook {
         }
 
         if order.quantity > 0 {
-            self.order_map.insert(order.id, (order.side, order.price));
-            self.asks
-                .entry(order.price)
-                .or_insert_with(|| PriceLevel {
-                    price: order.price,
-                    orders: VecDeque::new(),
-                })
-                .orders
-                .push_back(order);
+            self.add_resting_order(order);
         }
 
         fills
     }
 
-    fn add_market_bid_order(&mut self, mut order: Order) -> Vec<Fill> {
+    fn execute_market_bid_order(&mut self, mut order: Order) -> Vec<Fill> {
         let mut fills: Vec<Fill> = Vec::new();
         let mut to_be_deleted: Vec<u64> = Vec::new();
 
@@ -243,7 +242,7 @@ impl OrderBook {
         fills
     }
 
-    fn add_market_ask_order(&mut self, mut order: Order) -> Vec<Fill> {
+    fn execute_market_ask_order(&mut self, mut order: Order) -> Vec<Fill> {
         let mut fills: Vec<Fill> = Vec::new();
         let mut to_be_deleted: Vec<u64> = Vec::new();
 
@@ -300,14 +299,14 @@ impl OrderBook {
             // 3. if incoming order still has unfilled quantity:
             //      - add to order_map
             //      - insert into own side's price level (create if doesn't exist)
-            Side::Bid => self.add_bid_order(order),
-            Side::Ask => self.add_ask_order(order),
+            Side::Bid => self.execute_limit_bid_order(order),
+            Side::Ask => self.execute_limit_ask_order(order),
         }
     }
     pub fn add_market_order(&mut self, order: Order) -> Vec<Fill> {
         match order.side {
-            Side::Bid => self.add_market_bid_order(order),
-            Side::Ask => self.add_market_ask_order(order),
+            Side::Bid => self.execute_market_bid_order(order),
+            Side::Ask => self.execute_market_ask_order(order),
         }
     }
     pub fn cancel_order(&mut self, _order_id: u64) -> bool {
@@ -327,8 +326,8 @@ mod tests {
 
         let another_bid = Order::new_limit(2, Side::Bid, 95, 20, 0);
 
-        order_book.add_bid_order(bid);
-        order_book.add_bid_order(another_bid);
+        order_book.add_resting_order(bid);
+        order_book.add_resting_order(another_bid);
 
         let incoming_ask = Order::new_limit(4, Side::Ask, 80, 30, 0);
 
@@ -351,8 +350,8 @@ mod tests {
         let second_ask = Order::new_limit(2, Side::Ask, 85, 10, 0);
 
         let mut order_book = OrderBook::new();
-        order_book.add_ask_order(ask);
-        order_book.add_ask_order(second_ask);
+        order_book.add_resting_order(ask);
+        order_book.add_resting_order(second_ask);
 
         let fills = order_book.add_limit_order(incoming_bid);
         assert_eq!(fills.len(), 2);
@@ -371,7 +370,7 @@ mod tests {
         let resting_ask = Order::new_limit(2, Side::Ask, 85, 10, 0);
 
         let mut order_book = OrderBook::new();
-        order_book.add_ask_order(resting_ask);
+        order_book.add_resting_order(resting_ask);
 
         let fills = order_book.add_limit_order(incoming_bid);
 
@@ -397,7 +396,7 @@ mod tests {
 
         let mut order_book = OrderBook::new();
 
-        order_book.add_ask_order(resting_ask);
+        order_book.add_resting_order(resting_ask);
 
         let fills = order_book.add_limit_order(incoming_bid);
 
@@ -412,7 +411,7 @@ mod tests {
         let resting_ask = Order::new_limit(3, Side::Ask, 110, 10, 0);
 
         let mut order_book = OrderBook::new();
-        order_book.add_ask_order(resting_ask);
+        order_book.add_resting_order(resting_ask);
 
         let fills = order_book.add_limit_order(incoming_bid);
         let new_resting = order_book.bids.get(&100);
@@ -432,8 +431,8 @@ mod tests {
         let second_resting_ask = Order::new_limit(3, Side::Ask, 85, 10, 1);
 
         let mut order_book = OrderBook::new();
-        order_book.add_ask_order(first_resting_ask);
-        order_book.add_ask_order(second_resting_ask);
+        order_book.add_resting_order(first_resting_ask);
+        order_book.add_resting_order(second_resting_ask);
 
         let fills = order_book.add_limit_order(incoming_bid);
 
@@ -455,9 +454,9 @@ mod tests {
         let third_resting_ask = Order::new_limit(4, Side::Ask, 100, 10, 2);
 
         let mut order_book = OrderBook::new();
-        order_book.add_ask_order(first_resting_ask);
-        order_book.add_ask_order(second_resting_ask);
-        order_book.add_ask_order(third_resting_ask);
+        order_book.add_resting_order(first_resting_ask);
+        order_book.add_resting_order(second_resting_ask);
+        order_book.add_resting_order(third_resting_ask);
 
         let fills = order_book.add_market_order(incoming_order);
 
@@ -482,7 +481,7 @@ mod tests {
         let first_resting_ask = Order::new_limit(2, Side::Ask, 85, 10, 0);
 
         let mut order_book = OrderBook::new();
-        order_book.add_ask_order(first_resting_ask);
+        order_book.add_resting_order(first_resting_ask);
 
         let fills = order_book.add_market_order(incoming_order);
 
